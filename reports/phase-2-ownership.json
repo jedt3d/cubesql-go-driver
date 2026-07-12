@@ -1,0 +1,80 @@
+{
+  "recorded_at": "2026-07-12T23:28:34+07:00",
+  "phase": 2,
+  "module": "github.com/jedt3d/cubesql-go-driver",
+  "branch": "agent/phase-2-csdk-ownership",
+  "base_commit": "8c70b39d620d3ae80c478517043f564eae371a62",
+  "platform": {
+    "distribution": "Ubuntu 26.04 LTS",
+    "architecture": "x86_64",
+    "cpu": "Intel(R) Core(TM) i7-10510U CPU @ 1.80GHz",
+    "kernel": "7.0.0-27-generic",
+    "libc": "glibc 2.43"
+  },
+  "toolchain": {
+    "go": "go1.26.5 linux/amd64",
+    "compiler": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0"
+  },
+  "cubesql": {
+    "server": "5.9.6",
+    "sqlite_engine": "3.46.1",
+    "sdk_commit": "997c73702f8c1ac5e26972a469eeed19ae05618e",
+    "sdk_header_version": "060600",
+    "cubesql_c_sha256": "8a18e1b9396a71418e64fb041a6341782ccf6a75afb29be0fe4e6dc7af0747c3",
+    "cubesql_h_sha256": "f3494f92cea087aa6e4229dfeb7c6f3e035849c800b7b0620390ac1d496bb379",
+    "ownership_patch_sha256": "773e96862d801d4da6d49cb598247a970054e9e53af93e0c58fdde7a3a6b9f68",
+    "tls_compile_mode": "CUBESQL_DISABLE_SSL_ENCRYPTION"
+  },
+  "ownership": {
+    "native_handles_private": true,
+    "retained_bind_graph_owner": "C",
+    "sdk_mutated_bind_arrays_copied_per_call": true,
+    "cursor_bytes_copied": true,
+    "error_text_copied": true,
+    "connection_calls_serialized": true,
+    "explicit_idempotent_close": true,
+    "active_child_close_result": "ErrBusy",
+    "go_pointers_retained_by_c": false,
+    "callbacks_enabled": false,
+    "cancellation_claimed": false,
+    "internal_pooling": false
+  },
+  "verification": {
+    "go_test_all": "pass",
+    "go_vet_all": "pass",
+    "integration_normal": "pass",
+    "integration_race": "pass",
+    "integration_cgocheck2": "pass",
+    "integration_asan": "pass",
+    "repeated_open_close_iterations": 25,
+    "serialized_aes_ping_workers": 8,
+    "serialized_aes_pings_per_worker": 10,
+    "sandbox_database": "go_cubesql_driver_phase2.db",
+    "cleanup_verified_from_separate_connection": true,
+    "credentials_logged": false
+  },
+  "functional_evidence": {
+    "one_shot_bind_graph_reuse": "pass",
+    "int64_boundary": "pass",
+    "utf8_text_round_trip": "pass",
+    "embedded_nul_blob_round_trip": "pass",
+    "null_round_trip": "pass",
+    "prepared_blob": "pass",
+    "prepared_zeroblob_32_bytes": "pass",
+    "transaction_rollback": "pass",
+    "transaction_commit_persisted": "pass",
+    "copied_error_stability": "pass"
+  },
+  "compatibility_boundaries": {
+    "empty_blob_bind": "rejected-with-ErrUnsupported",
+    "sql_literal_empty_blob_on_server_5_9_6": "persisted-as-NULL",
+    "one_shot_zeroblob": "rejected-with-ErrUnsupported-because-requested-length-is-not-preserved",
+    "prepared_zeroblob": "supported-and-verified",
+    "ddl_transaction_state": "commit-after-DDL-before-explicit-begin",
+    "tls": "not-built-or-validated",
+    "context_cancellation": "not-implemented",
+    "trace_callbacks": "not-implemented"
+  },
+  "acceptance": "Phase 2 ownership gate only; not public API or database/sql acceptance",
+  "phase_2_passed": true
+}

@@ -20,6 +20,8 @@ go.work.sum
 # Local environment and credentials
 .env
 .env.local
+__pycache__/
+*.pyc
 
 # Dependency directories are intentionally not ignored: the pinned CubeSQL C
 # SDK lives under third_party/ and is reviewed source, not a Go module vendor.
