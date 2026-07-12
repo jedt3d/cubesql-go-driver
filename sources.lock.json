@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "researchedAt": "2026-07-12",
+  "sources": [
+    {
+      "name": "cubesql-sdk",
+      "url": "https://github.com/cubesql/sdk.git",
+      "commit": "997c73702f8c1ac5e26972a469eeed19ae05618e",
+      "license": "MIT",
+      "role": "authoritative-c-sdk"
+    },
+    {
+      "name": "cubesql-go-legacy",
+      "url": "https://github.com/andreaspfeil/CubeSQL.go.git",
+      "commit": "a9e7b7c24c7bd7f2e53e1d01a7278daac8b7abc7",
+      "license": "BEER-MIT",
+      "role": "comparative-migration-seed"
+    },
+    {
+      "name": "maragudk-go-skill",
+      "url": "https://github.com/maragudk/skills.git",
+      "commit": "9859f7bceb7a46af8482cabb9aa24e0d38a49413",
+      "license": "MIT",
+      "role": "optional-skill-candidate"
+    },
+    {
+      "name": "samber-go-skills",
+      "url": "https://github.com/samber/cc-skills-golang.git",
+      "commit": "4881c01da71a890c9907257c0636d8cde75d12ca",
+      "license": "MIT",
+      "role": "optional-skill-candidate"
+    }
+  ],
+  "toolchain": {
+    "goBaseline": "1.26.5",
+    "cgoRequired": true
+  },
+  "platform": {
+    "os": "Linux",
+    "architecture": "x86_64",
+    "goArchitecture": "amd64",
+    "libc": "glibc",
+    "referenceDistribution": {
+      "id": "ubuntu",
+      "version": "26.04",
+      "name": "Ubuntu 26.04 LTS"
+    },
+    "plannedValidationFamilies": [
+      "Debian",
+      "Linux Mint",
+      "Fedora",
+      "Rocky Linux",
+      "Red Hat Enterprise Linux",
+      "Arch Linux"
+    ],
+    "validationStatus": "planned families are designed but unvalidated"
+  }
+}

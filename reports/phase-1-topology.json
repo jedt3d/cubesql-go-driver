@@ -1,0 +1,38 @@
+{
+  "recorded_at": "2026-07-12T22:34:27+07:00",
+  "module": "github.com/jedt3d/cubesql-go-driver",
+  "platform": "linux/amd64 glibc",
+  "toolchain": {
+    "go": "go1.26.5",
+    "compiler": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0",
+    "archiver": "GNU ar 2.46"
+  },
+  "sdk": {
+    "commit": "997c73702f8c1ac5e26972a469eeed19ae05618e",
+    "header_version": "060600",
+    "cubesql_c_sha256": "8a18e1b9396a71418e64fb041a6341782ccf6a75afb29be0fe4e6dc7af0747c3",
+    "cubesql_h_sha256": "f3494f92cea087aa6e4229dfeb7c6f3e035849c800b7b0620390ac1d496bb379",
+    "patch_sha256": "773e96862d801d4da6d49cb598247a970054e9e53af93e0c58fdde7a3a6b9f68",
+    "tls_compile_mode": "CUBESQL_DISABLE_SSL_ENCRYPTION"
+  },
+  "vendored_source": {
+    "normal_test": "pass",
+    "race_test": "pass",
+    "cgocheck2_test": "pass",
+    "asan_test": "pass",
+    "vet": "pass",
+    "requires_global_sdk": false
+  },
+  "static_archive": {
+    "pic": true,
+    "normal_test": "pass",
+    "asan_test": "pass",
+    "vet": "pass",
+    "reproducible_two_builds": true,
+    "normal_archive_sha256": "ed937a0e3bb9a88d9a4571d0762260591ae8e8ccc8ff25d3002143390b4570e7",
+    "requires_explicit_build_step": true
+  },
+  "decision": "vendored-source-cgo-default",
+  "static_path": "retained-for-packaging-and-diagnostics",
+  "phase_1_passed": true
+}
