@@ -1,0 +1,12 @@
+diff --git a/C_SDK/cubesql.c b/C_SDK/cubesql.c
+index 87e7d95..2f250b6 100755
+--- a/C_SDK/cubesql.c
++++ b/C_SDK/cubesql.c
+@@ -2136,6 +2136,7 @@ int csql_checkheader(csqldb *db, int expected_size, int expected_nfields, int *e
+ 		int	use_static = kFALSE;
+ 		
+ 		if (dsize < sizeof(db->errmsg)) {
++			if ((db->inbuffer != NULL) && (db->inbuffer != db->errmsg)) free(db->inbuffer);
+ 			use_static = kTRUE;
+ 			db->inbuffer = db->errmsg;
+ 			db->inbuffer[dsize] = 0;

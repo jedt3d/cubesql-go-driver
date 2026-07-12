@@ -1,0 +1,3 @@
+# Preserve the pinned SDK byte-for-byte. Its historical source formatting has
+# trailing whitespace that should not weaken whitespace checks for driver code.
+third_party/cubesql-sdk/** -whitespace
