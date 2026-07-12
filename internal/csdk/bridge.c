@@ -408,7 +408,7 @@ int csqlgo_stmt_bind_null(csqlgo_stmt *stmt, int index) {
 }
 
 int csqlgo_stmt_bind_zeroblob(csqlgo_stmt *stmt, int index, int length) {
-    if (stmt == NULL || stmt->vm == NULL || length <= 0)
+    if (stmt == NULL || stmt->vm == NULL || length < 0)
         return CSQLGO_ERR_INVALID;
     return cubesql_vmbind_zeroblob(stmt->vm, index, length);
 }

@@ -66,10 +66,11 @@
     "copied_error_stability": "pass"
   },
   "compatibility_boundaries": {
-    "empty_blob_bind": "rejected-with-ErrUnsupported",
-    "sql_literal_empty_blob_on_server_5_9_6": "persisted-as-NULL",
+    "one_shot_empty_blob_bind": "rejected-with-ErrUnsupported",
+    "sql_literal_empty_blob_cursor_result": "reported-as-NULL-by-sdk-060600",
+    "phase_3_storage_correction": "server-reports-IS-NULL-0-typeof-blob-length-0",
     "one_shot_zeroblob": "rejected-with-ErrUnsupported-because-requested-length-is-not-preserved",
-    "prepared_zeroblob": "supported-and-verified",
+    "prepared_zeroblob": "zero-and-32-byte-storage-supported; zero-byte-cursor-read-is-indistinguishable-from-NULL",
     "ddl_transaction_state": "commit-after-DDL-before-explicit-begin",
     "tls": "not-built-or-validated",
     "context_cancellation": "not-implemented",

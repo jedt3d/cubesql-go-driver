@@ -258,12 +258,12 @@ func TestIntegrationOwnershipAndCopies(t *testing.T) {
 	if closeErr != nil {
 		t.Fatal(closeErr)
 	}
-	// CubeSQL Server 5.9.6 persists SQL literal X'' as NULL. Keep this
-	// regression explicit alongside the rejected empty bind paths above so a
-	// future SDK/server upgrade cannot silently change the compatibility
-	// boundary in either direction.
+	// SDK 060600 reports SQL literal X'' as a NULL cursor field. A Phase 3
+	// server-side predicate probe proves the stored value is actually a BLOB of
+	// length zero, so this regression records a cursor-protocol ambiguity rather
+	// than server-side NULL coercion.
 	if err != nil || !isNull || empty != nil {
-		t.Fatalf("persisted X'' = %v, null=%v, err=%v; want server NULL coercion", empty, isNull, err)
+		t.Fatalf("X'' cursor field = %v, null=%v, err=%v; want SDK NULL report", empty, isNull, err)
 	}
 
 	rows, err = conn.Query("SELECT data FROM values_test WHERE id = -43;")

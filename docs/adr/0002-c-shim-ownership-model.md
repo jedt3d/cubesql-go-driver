@@ -44,14 +44,16 @@ patched CubeSQL SDK.
 ## Compatibility findings
 
 The executed Server 5.9.6 / SQLite 3.46.1 / SDK 060600 combination has two BLOB
-boundaries that the private API exposes honestly:
+boundaries that the private API exposes honestly. A Phase 3 server-side probe
+corrected the original Phase 2 interpretation of empty cursor values:
 
-- empty BLOB binds are rejected because VM binding produces SQL NULL and the
-  one-shot API produces compressed bytes; SQL literal `X''` is also persisted
-  by the server as NULL;
+- one-shot empty BLOB binding is rejected because it produces compressed bytes.
+  Prepared zeroblob with length zero and SQL literal `X''` are stored correctly
+  (`IS NULL=0`, `typeof=blob`, `length=0`), but SDK cursor 060600 reports the
+  field as NULL and therefore cannot distinguish it from a true SQL NULL;
 - one-shot `CUBESQL_BIND_ZEROBLOB` does not preserve the requested length and is
   rejected, while prepared-statement zeroblob is verified with a persisted
-  32-byte value.
+  zero-byte and 32-byte value.
 
 CubeSQL DDL may leave a session transaction open. Transaction integration tests
 therefore follow the official C baseline and commit after DDL before testing an

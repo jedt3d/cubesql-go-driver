@@ -2,10 +2,12 @@
 
 Go module: `github.com/jedt3d/cubesql-go-driver`
 
-Status: Phase 2 private C shim and ownership model. The native boundary passes
-normal, race, `GOEXPERIMENT=cgocheck2`, and ASan integration tests against the
-reference host. This repository still does not contain an accepted public Go or
-`database/sql` API and must not be described as a working Go driver yet.
+Status: Phase 3 safe public core implementation. The `cubesql` package and its
+private native boundary pass normal, race, `GOEXPERIMENT=cgocheck2`, and ASan
+integration tests against the reference host. The Phase 3 exit gate remains
+blocked because SDK 060600 cursor results cannot distinguish an empty BLOB from
+SQL NULL. This repository does not contain a `database/sql` adapter and must not
+be described as a fully working Go driver yet.
 
 The implementation wraps the official CubeSQL C SDK pinned in
 `sources.lock.json`. Linux x86_64/glibc/cgo and Ubuntu 26.04 are the first
@@ -34,8 +36,15 @@ Go, serializes calls per connection, and requires deterministic explicit
 `Close` calls. Context cancellation, trace callbacks, TLS, and internal pooling
 are not implemented.
 
-The pinned SDK/server combination cannot safely round-trip an empty BLOB bind:
-empty bind calls are rejected, and Server 5.9.6 persists SQL literal `X''` as
-NULL. The SDK's one-shot zeroblob bind also fails parity and is rejected;
-prepared-statement zeroblob is verified. These are explicit compatibility
-boundaries for the later public API.
+The public `cubesql` package exposes Go-owned `Options`, `Conn`, `Rows`, `Stmt`,
+`Tx`, typed values, copied errors, and deterministic lifecycle guards. It
+supports clear/AES connections, direct and prepared execution, query/scan,
+explicit transactions, session database selection, affected rows, and last
+inserted IDs. Ordinary SDK DML remains pending until the caller commits.
+
+Empty BLOB writes use the prepared zeroblob command and are stored correctly:
+Server 5.9.6 reports `IS NULL=0`, `typeof=blob`, and `length=0`. However, SDK
+060600 returns both that value and a true SQL NULL as a NULL cursor field. The
+public API therefore cannot yet preserve their distinction on reads. The SDK's
+one-shot zeroblob bind also fails parity and remains rejected. These are
+explicit compatibility boundaries, not hidden coercions.
