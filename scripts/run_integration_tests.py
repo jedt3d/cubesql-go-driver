@@ -45,7 +45,7 @@ def main() -> int:
         "--mode", choices=("normal", "race", "cgocheck2", "asan"), default="normal"
     )
     parser.add_argument(
-        "--package", choices=("all", "core", "csdk"), default="all"
+        "--package", choices=("all", "core", "csdk", "database"), default="all"
     )
     parser.add_argument("--run", help="Go test name regular expression")
     parser.add_argument("--verbose", action="store_true")
@@ -71,9 +71,10 @@ def main() -> int:
     elif args.mode == "cgocheck2":
         environment["GOEXPERIMENT"] = "cgocheck2"
     packages = {
-        "all": ("./internal/csdk", "./cubesql"),
+        "all": ("./internal/csdk", "./cubesql", "./database/cubesql"),
         "core": ("./cubesql",),
         "csdk": ("./internal/csdk",),
+        "database": ("./database/cubesql",),
     }
     command.extend(packages[args.package])
     return subprocess.run(command, env=environment, check=False).returncode

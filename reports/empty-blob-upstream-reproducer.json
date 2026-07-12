@@ -1,0 +1,20 @@
+{
+  "recorded_at": "2026-07-12T18:00:58.654714+00:00",
+  "sdk_commit": "997c73702f8c1ac5e26972a469eeed19ae05618e",
+  "sdk_header_version": "060600",
+  "sandbox_database": "go_cubesql_empty_blob_repro.db",
+  "credentials_logged": false,
+  "original_upstream_integration_executed": false,
+  "compile": {
+    "exit_code": 0,
+    "stderr": "/tmp/cubesql-sdk-empty-blob-997c/C_SDK/cubesql.c: In function \u2018csql_checkheader\u2019:\n/tmp/cubesql-sdk-empty-blob-997c/C_SDK/cubesql.c:2109:26: warning: multi-character character constant [-Wmultichar]\n 2109 |         if (signature != PROTOCOL_SIGNATURE) {\n      |                          ^~~~~~~~~~~~~~~~~~\n/tmp/cubesql-sdk-empty-blob-997c/C_SDK/cubesql.c: In function \u2018csql_initrequest\u2019:\n/tmp/cubesql-sdk-empty-blob-997c/C_SDK/cubesql.c:2171:54: warning: multi-character character constant [-Wmultichar]\n 2171 |         request->signature = htonl(PROTOCOL_SIGNATURE);\n      |                                                      ^\n"
+  },
+  "run": {
+    "exit_code": 0,
+    "stdout": "sdk_version=060600\nempty.cursor_pointer=NULL\nempty.cursor_length=-1\nempty.sql_is_null=0\nempty.sql_typeof=blob\nempty.sql_length=0\nnull.cursor_pointer=NULL\nnull.cursor_length=-1\nnull.sql_is_null=1\nnull.sql_typeof=null\nnull.sql_length=-1\nbug_reproduced=1\ncleanup_verified=1\n",
+    "stderr": "",
+    "bug_reproduced": true,
+    "cleanup_verified": true
+  },
+  "passed": true
+}
