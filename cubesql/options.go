@@ -1,6 +1,7 @@
 package cubesql
 
 import (
+	"strings"
 	"time"
 
 	"github.com/jedt3d/cubesql-go-driver/internal/csdk"
@@ -28,6 +29,10 @@ type Options struct {
 }
 
 func (options Options) native() (csdk.Options, error) {
+	if options.Username == "" || strings.IndexByte(options.Host, 0) >= 0 ||
+		strings.IndexByte(options.Username, 0) >= 0 || strings.IndexByte(options.Password, 0) >= 0 {
+		return csdk.Options{}, ErrInvalidArgument
+	}
 	if options.Timeout < 0 {
 		return csdk.Options{}, ErrInvalidArgument
 	}
@@ -60,6 +65,12 @@ func (options Options) native() (csdk.Options, error) {
 		Timeout:    timeout,
 		Encryption: encryption,
 	}, nil
+}
+
+// Validate checks Options without opening a network connection.
+func (options Options) Validate() error {
+	_, err := options.native()
+	return err
 }
 
 // Version returns the pinned CubeSQL C SDK header version.
