@@ -478,9 +478,6 @@ func (stmt *Stmt) BindZeroBlob(index, length int) error {
 	if index <= 0 || length < 0 {
 		return ErrInvalidArgument
 	}
-	if length == 0 {
-		return stmt.unsupported()
-	}
 	return stmt.call(func(ptr *C.csqlgo_stmt) C.int {
 		return C.csqlgo_stmt_bind_zeroblob(ptr, C.int(index), C.int(length))
 	})
