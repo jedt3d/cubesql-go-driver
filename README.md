@@ -2,9 +2,9 @@
 
 Go module: `github.com/jedt3d/cubesql-go-driver`
 
-Status: Phase 3 safe public core implementation. The `cubesql` package and its
-private native boundary pass normal, race, `GOEXPERIMENT=cgocheck2`, and ASan
-integration tests against the reference host. The Phase 3 exit gate remains
+Status: Phase 4 public semantics implementation. The `cubesql` package now has
+typed authentication, authorization, network, protocol, server, and timeout
+errors plus context-aware preflight methods. The Phase 3 exit gate remains
 blocked because SDK 060600 cursor results cannot distinguish an empty BLOB from
 SQL NULL. This repository does not contain a `database/sql` adapter and must not
 be described as a fully working Go driver yet.
@@ -33,14 +33,26 @@ zlib. TLS remains an explicit later parity gate.
 `internal/csdk` is deliberately private. It owns all native handles, retains
 only C-allocated bind graphs, copies cursor and error bytes before returning to
 Go, serializes calls per connection, and requires deterministic explicit
-`Close` calls. Context cancellation, trace callbacks, TLS, and internal pooling
-are not implemented.
+`Close` calls. Trace callbacks, TLS, and internal pooling are not implemented.
 
 The public `cubesql` package exposes Go-owned `Options`, `Conn`, `Rows`, `Stmt`,
 `Tx`, typed values, copied errors, and deterministic lifecycle guards. It
 supports clear/AES connections, direct and prepared execution, query/scan,
 explicit transactions, session database selection, affected rows, and last
 inserted IDs. Ordinary SDK DML remains pending until the caller commits.
+
+`OpenContext` and the `Context` methods check cancellation before every native
+call they make. They cannot interrupt a native call after it begins. In
+particular, the SDK uses the configured timeout for socket connect and write,
+uses a fixed approximately five-second handshake read timeout, and performs
+ordinary response reads without a client-side timeout. A context deadline that
+expires during one of those reads therefore does not stop the call.
+
+Concurrent `cubesql_cancel` testing closed the client socket but did not stop
+server-side SQL work; the abandoned work retained the sandbox database. The
+driver consequently exposes no in-flight cancellation API and makes no
+cancellation-compliance claim. A canceled context is guaranteed to prevent a
+call only when it is already canceled at a checked preflight boundary.
 
 Empty BLOB writes use the prepared zeroblob command and are stored correctly:
 Server 5.9.6 reports `IS NULL=0`, `typeof=blob`, and `length=0`. However, SDK

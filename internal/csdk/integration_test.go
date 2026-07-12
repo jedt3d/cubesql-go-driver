@@ -249,11 +249,14 @@ func TestIntegrationOwnershipAndCopies(t *testing.T) {
 		t.Fatalf("Exec() after stmt Close() = %v, want ErrClosed", err)
 	}
 
-	rows, err = conn.Query("SELECT data, nullable FROM values_test WHERE id = -9223372036854775808;")
+	rows, err = conn.Query("SELECT data, data IS NULL, typeof(data), coalesce(length(data), -1) FROM values_test WHERE id = -9223372036854775808;")
 	if err != nil {
 		t.Fatal(err)
 	}
 	empty, isNull, err := rows.Field(1, 1)
+	emptyIsNull, predicateNull, predicateErr := rows.Field(1, 2)
+	emptyType, typeNull, typeErr := rows.Field(1, 3)
+	emptyLength, lengthNull, lengthErr := rows.Field(1, 4)
 	closeErr = rows.Close()
 	if closeErr != nil {
 		t.Fatal(closeErr)
@@ -264,6 +267,34 @@ func TestIntegrationOwnershipAndCopies(t *testing.T) {
 	// than server-side NULL coercion.
 	if err != nil || !isNull || empty != nil {
 		t.Fatalf("X'' cursor field = %v, null=%v, err=%v; want SDK NULL report", empty, isNull, err)
+	}
+	if predicateErr != nil || predicateNull || string(emptyIsNull) != "0" ||
+		typeErr != nil || typeNull || string(emptyType) != "blob" ||
+		lengthErr != nil || lengthNull || string(emptyLength) != "0" {
+		t.Fatalf("X'' server predicates = is_null:%q/%v/%v type:%q/%v/%v length:%q/%v/%v",
+			emptyIsNull, predicateNull, predicateErr, emptyType, typeNull, typeErr, emptyLength, lengthNull, lengthErr)
+	}
+
+	if err := conn.Exec("INSERT INTO values_test VALUES (-100, 0, 'true null blob', NULL, NULL);"); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = conn.Query("SELECT data, data IS NULL, typeof(data), coalesce(length(data), -1) FROM values_test WHERE id = -100;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	nullBlob, nullBlobField, nullBlobErr := rows.Field(1, 1)
+	nullIsNull, nullPredicateNull, nullPredicateErr := rows.Field(1, 2)
+	nullType, nullTypeNull, nullTypeErr := rows.Field(1, 3)
+	nullLength, nullLengthNull, nullLengthErr := rows.Field(1, 4)
+	closeErr = rows.Close()
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if nullBlobErr != nil || !nullBlobField || nullBlob != nil ||
+		nullPredicateErr != nil || nullPredicateNull || string(nullIsNull) != "1" ||
+		nullTypeErr != nil || nullTypeNull || string(nullType) != "null" ||
+		nullLengthErr != nil || nullLengthNull || string(nullLength) != "-1" {
+		t.Fatalf("NULL BLOB cursor/predicates mismatch")
 	}
 
 	rows, err = conn.Query("SELECT data FROM values_test WHERE id = -43;")

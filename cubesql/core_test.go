@@ -2,6 +2,7 @@ package cubesql
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"math"
 	"testing"
@@ -49,6 +50,100 @@ func TestPublicErrorCopiesNativeError(t *testing.T) {
 	native.Message = "changed"
 	if public.Message != "copied" {
 		t.Fatal("public error retained mutable native error state")
+	}
+}
+
+func TestErrorClassification(t *testing.T) {
+	for _, test := range []struct {
+		code    int
+		message string
+		kind    ErrorKind
+		is      error
+	}{
+		{7056, "bad login", ErrorAuthentication, ErrAuthentication},
+		{810, "timeout", ErrorTimeout, ErrTimeout},
+		{802, "host not found", ErrorNetwork, ErrNetwork},
+		{111, "An error occurred inside csql_socketread", ErrorNetwork, ErrNetwork},
+		{840, "wrong signature", ErrorProtocol, ErrProtocol},
+		{7001, "permission denied", ErrorAuthorization, ErrAuthorization},
+		{1, "SQL error", ErrorServer, ErrServer},
+	} {
+		err := &Error{Code: test.code, Message: test.message, Kind: classifyError(test.code, test.message)}
+		if err.Kind != test.kind || !errors.Is(err, test.is) {
+			t.Fatalf("classifyError(%d, %q) = %v, is %v", test.code, test.message, err.Kind, test.is)
+		}
+	}
+}
+
+func TestContextPreflight(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := OpenContext(ctx, Options{}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("OpenContext(canceled) = %v, want context.Canceled", err)
+	}
+	conn := &Conn{}
+	if err := conn.PingContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("PingContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := conn.ExecContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ExecContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := conn.QueryContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("QueryContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := conn.PrepareContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("PrepareContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := conn.BeginContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("BeginContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := conn.CommitContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("CommitContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := conn.RollbackContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("RollbackContext(canceled) = %v, want context.Canceled", err)
+	}
+	rows := &Rows{}
+	if rows.NextContext(ctx) || !errors.Is(rows.Err(), context.Canceled) {
+		t.Fatalf("NextContext(canceled) = true or Err() = %v", rows.Err())
+	}
+	if err := rows.SeekContext(ctx, 1); !errors.Is(err, context.Canceled) {
+		t.Fatalf("SeekContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := rows.ValueContext(ctx, 1); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ValueContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := rows.ScanContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ScanContext(canceled) = %v, want context.Canceled", err)
+	}
+	stmt := &Stmt{}
+	if _, err := stmt.ExecContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Stmt.ExecContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := stmt.QueryContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Stmt.QueryContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := stmt.ResetContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Stmt.ResetContext(canceled) = %v, want context.Canceled", err)
+	}
+	tx := &Tx{}
+	if _, err := tx.ExecContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Tx.ExecContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := tx.QueryContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Tx.QueryContext(canceled) = %v, want context.Canceled", err)
+	}
+	if _, err := tx.PrepareContext(ctx, "SELECT 1;"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Tx.PrepareContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := tx.CommitContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Tx.CommitContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := tx.RollbackContext(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Tx.RollbackContext(canceled) = %v, want context.Canceled", err)
+	}
+	if err := conn.PingContext(nil); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("PingContext(nil) = %v, want ErrInvalidArgument", err)
 	}
 }
 

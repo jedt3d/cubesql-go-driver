@@ -1,6 +1,7 @@
 package cubesql
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"sync"
@@ -65,10 +66,22 @@ type Rows struct {
 }
 
 func newRows(native *csdk.Rows) (*Rows, error) {
+	return newRowsContext(context.Background(), native)
+}
+
+func newRowsContext(ctx context.Context, native *csdk.Rows) (*Rows, error) {
+	if err := contextError(ctx); err != nil {
+		native.Close()
+		return nil, err
+	}
 	total, err := native.NumRows()
 	if err != nil {
 		native.Close()
 		return nil, publicError(err)
+	}
+	if err := contextError(ctx); err != nil {
+		native.Close()
+		return nil, err
 	}
 	count, err := native.NumColumns()
 	if err != nil {
@@ -82,10 +95,18 @@ func newRows(native *csdk.Rows) (*Rows, error) {
 		total:   total,
 	}
 	for index := 1; index <= count; index++ {
+		if err := contextError(ctx); err != nil {
+			rows.Close()
+			return nil, err
+		}
 		name, err := native.ColumnName(index)
 		if err != nil {
 			rows.Close()
 			return nil, publicError(err)
+		}
+		if err := contextError(ctx); err != nil {
+			rows.Close()
+			return nil, err
 		}
 		columnType, err := native.ColumnType(index)
 		if err != nil {
@@ -154,11 +175,19 @@ func (rows *Rows) NumRows() int {
 }
 
 func (rows *Rows) Next() bool {
+	return rows.NextContext(context.Background())
+}
+
+func (rows *Rows) NextContext(ctx context.Context) bool {
 	if rows == nil {
 		return false
 	}
 	rows.mu.Lock()
 	defer rows.mu.Unlock()
+	if err := contextError(ctx); err != nil {
+		rows.err = err
+		return false
+	}
 	if rows.native == nil {
 		if rows.err == nil {
 			rows.err = ErrClosed
@@ -178,6 +207,13 @@ func (rows *Rows) Next() bool {
 }
 
 func (rows *Rows) Seek(row int) error {
+	return rows.SeekContext(context.Background(), row)
+}
+
+func (rows *Rows) SeekContext(ctx context.Context, row int) error {
+	if err := contextError(ctx); err != nil {
+		return err
+	}
 	if row <= 0 {
 		return ErrInvalidArgument
 	}
@@ -188,6 +224,9 @@ func (rows *Rows) Seek(row int) error {
 	defer rows.mu.Unlock()
 	if rows.native == nil {
 		return ErrClosed
+	}
+	if err := contextError(ctx); err != nil {
+		return err
 	}
 	if err := rows.native.Seek(row); err != nil {
 		return publicError(err)
@@ -207,15 +246,29 @@ func (rows *Rows) Err() error {
 }
 
 func (rows *Rows) Value(column int) (Value, error) {
+	return rows.ValueContext(context.Background(), column)
+}
+
+func (rows *Rows) ValueContext(ctx context.Context, column int) (Value, error) {
+	if err := contextError(ctx); err != nil {
+		return Value{}, err
+	}
 	if rows == nil {
 		return Value{}, ErrClosed
 	}
 	rows.mu.Lock()
 	defer rows.mu.Unlock()
-	return rows.valueLocked(column)
+	return rows.valueLocked(ctx, column)
 }
 
 func (rows *Rows) Scan(destinations ...any) error {
+	return rows.ScanContext(context.Background(), destinations...)
+}
+
+func (rows *Rows) ScanContext(ctx context.Context, destinations ...any) error {
+	if err := contextError(ctx); err != nil {
+		return err
+	}
 	if rows == nil {
 		return ErrClosed
 	}
@@ -231,7 +284,10 @@ func (rows *Rows) Scan(destinations ...any) error {
 		return ErrScan
 	}
 	for index, destination := range destinations {
-		value, err := rows.valueLocked(index + 1)
+		if err := contextError(ctx); err != nil {
+			return err
+		}
+		value, err := rows.valueLocked(ctx, index+1)
 		if err != nil {
 			return err
 		}
@@ -242,12 +298,15 @@ func (rows *Rows) Scan(destinations ...any) error {
 	return nil
 }
 
-func (rows *Rows) valueLocked(column int) (Value, error) {
+func (rows *Rows) valueLocked(ctx context.Context, column int) (Value, error) {
 	if rows.native == nil {
 		return Value{}, ErrClosed
 	}
 	if rows.current <= 0 || rows.current > rows.total || column <= 0 || column > len(rows.columns) {
 		return Value{}, ErrInvalidArgument
+	}
+	if err := contextError(ctx); err != nil {
+		return Value{}, err
 	}
 	raw, isNull, err := rows.native.Field(rows.current, column)
 	if err != nil {

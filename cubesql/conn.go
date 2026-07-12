@@ -1,6 +1,7 @@
 package cubesql
 
 import (
+	"context"
 	"sync"
 
 	"github.com/jedt3d/cubesql-go-driver/internal/csdk"
@@ -16,6 +17,15 @@ type Conn struct {
 }
 
 func Open(options Options) (*Conn, error) {
+	return OpenContext(context.Background(), options)
+}
+
+// OpenContext checks ctx before entering the blocking SDK connect call. SDK
+// connect has its own timeout but cannot be interrupted by context cancellation.
+func OpenContext(ctx context.Context, options Options) (*Conn, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
 	nativeOptions, err := options.native()
 	if err != nil {
 		return nil, err
@@ -47,10 +57,29 @@ func (conn *Conn) Close() error {
 }
 
 func (conn *Conn) Ping() error {
-	return conn.call(func(native *csdk.Conn) error { return native.Ping() })
+	return conn.PingContext(context.Background())
+}
+
+func (conn *Conn) PingContext(ctx context.Context) error {
+	if err := contextError(ctx); err != nil {
+		return err
+	}
+	return conn.call(func(native *csdk.Conn) error {
+		if err := contextError(ctx); err != nil {
+			return err
+		}
+		return native.Ping()
+	})
 }
 
 func (conn *Conn) SetDatabase(name string) error {
+	return conn.SetDatabaseContext(context.Background(), name)
+}
+
+func (conn *Conn) SetDatabaseContext(ctx context.Context, name string) error {
+	if err := contextError(ctx); err != nil {
+		return err
+	}
 	if conn == nil {
 		return ErrClosed
 	}
@@ -62,10 +91,20 @@ func (conn *Conn) SetDatabase(name string) error {
 	if conn.txActive || conn.children != 0 {
 		return ErrBusy
 	}
+	if err := contextError(ctx); err != nil {
+		return err
+	}
 	return publicError(conn.native.SetDatabase(name))
 }
 
 func (conn *Conn) Exec(query string, args ...any) (Result, error) {
+	return conn.ExecContext(context.Background(), query, args...)
+}
+
+func (conn *Conn) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
+	if err := contextError(ctx); err != nil {
+		return Result{}, err
+	}
 	if query == "" {
 		return Result{}, ErrInvalidArgument
 	}
@@ -81,26 +120,41 @@ func (conn *Conn) Exec(query string, args ...any) (Result, error) {
 		return Result{}, ErrBusy
 	}
 	if len(args) == 0 {
+		if err := contextError(ctx); err != nil {
+			return Result{}, err
+		}
 		if err := conn.native.Exec(query); err != nil {
 			return Result{}, publicError(err)
 		}
-		return resultFor(conn.native), nil
+		return resultForContext(ctx, conn.native), nil
 	}
 	if hasEmptyBlob(args) {
+		if err := contextError(ctx); err != nil {
+			return Result{}, err
+		}
 		stmt, err := conn.native.Prepare(query)
 		if err != nil {
 			return Result{}, publicError(err)
 		}
 		defer stmt.Close()
 		for index, value := range args {
+			if err := contextError(ctx); err != nil {
+				return Result{}, err
+			}
 			if err := setPrepared(stmt, index+1, value); err != nil {
 				return Result{}, err
 			}
 		}
+		if err := contextError(ctx); err != nil {
+			return Result{}, err
+		}
 		if err := stmt.Exec(); err != nil {
 			return Result{}, publicError(err)
 		}
-		return resultFor(conn.native), nil
+		return resultForContext(ctx, conn.native), nil
+	}
+	if err := contextError(ctx); err != nil {
+		return Result{}, err
 	}
 	bind, err := csdk.NewBind(len(args))
 	if err != nil {
@@ -108,17 +162,30 @@ func (conn *Conn) Exec(query string, args ...any) (Result, error) {
 	}
 	defer bind.Close()
 	for index, value := range args {
+		if err := contextError(ctx); err != nil {
+			return Result{}, err
+		}
 		if err := setOneShot(bind, index+1, value); err != nil {
 			return Result{}, err
 		}
 	}
+	if err := contextError(ctx); err != nil {
+		return Result{}, err
+	}
 	if err := conn.native.ExecBind(query, bind); err != nil {
 		return Result{}, publicError(err)
 	}
-	return resultFor(conn.native), nil
+	return resultForContext(ctx, conn.native), nil
 }
 
 func (conn *Conn) Query(query string, args ...any) (*Rows, error) {
+	return conn.QueryContext(context.Background(), query, args...)
+}
+
+func (conn *Conn) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
 	if query == "" {
 		return nil, ErrInvalidArgument
 	}
@@ -134,11 +201,14 @@ func (conn *Conn) Query(query string, args ...any) (*Rows, error) {
 		if conn.children != 0 {
 			return nil, ErrBusy
 		}
+		if err := contextError(ctx); err != nil {
+			return nil, err
+		}
 		native, err := conn.native.Query(query)
 		if err != nil {
 			return nil, publicError(err)
 		}
-		rows, err := newRows(native)
+		rows, err := newRowsContext(ctx, native)
 		if err != nil {
 			return nil, err
 		}
@@ -146,17 +216,25 @@ func (conn *Conn) Query(query string, args ...any) (*Rows, error) {
 		rows.parentConn = conn
 		return rows, nil
 	}
-	stmt, err := conn.Prepare(query)
+	stmt, err := conn.PrepareContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	for index, value := range args {
+		if err := contextError(ctx); err != nil {
+			stmt.Close()
+			return nil, err
+		}
 		if err := stmt.Bind(index+1, value); err != nil {
 			stmt.Close()
 			return nil, err
 		}
 	}
-	rows, err := stmt.query(true)
+	if err := contextError(ctx); err != nil {
+		stmt.Close()
+		return nil, err
+	}
+	rows, err := stmt.query(ctx, true)
 	if err != nil {
 		stmt.Close()
 		return nil, err
@@ -165,6 +243,13 @@ func (conn *Conn) Query(query string, args ...any) (*Rows, error) {
 }
 
 func (conn *Conn) Prepare(query string) (*Stmt, error) {
+	return conn.PrepareContext(context.Background(), query)
+}
+
+func (conn *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
+	if err := contextError(ctx); err != nil {
+		return nil, err
+	}
 	if query == "" {
 		return nil, ErrInvalidArgument
 	}
@@ -178,6 +263,9 @@ func (conn *Conn) Prepare(query string) (*Stmt, error) {
 	}
 	if conn.children != 0 {
 		return nil, ErrBusy
+	}
+	if err := contextError(ctx); err != nil {
+		return nil, err
 	}
 	native, err := conn.native.Prepare(query)
 	if err != nil {
@@ -228,7 +316,17 @@ func (conn *Conn) metric(metric func(*csdk.Conn) (int64, error)) (int64, error) 
 }
 
 func resultFor(native *csdk.Conn) Result {
+	return resultForContext(context.Background(), native)
+}
+
+func resultForContext(ctx context.Context, native *csdk.Conn) Result {
+	if err := contextError(ctx); err != nil {
+		return Result{rowsError: err, lastError: err}
+	}
 	rowsAffected, rowsError := native.AffectedRows()
+	if err := contextError(ctx); err != nil {
+		return Result{rowsAffected: rowsAffected, rowsError: publicError(rowsError), lastError: err}
+	}
 	lastInsertID, lastError := native.LastInsertID()
 	return Result{
 		rowsAffected: rowsAffected,
