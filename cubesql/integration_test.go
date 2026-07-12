@@ -4,9 +4,11 @@ package cubesql
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -540,6 +542,9 @@ func TestIntegrationCoreFunctionalCoverage(t *testing.T) {
 		if !errors.As(err, &sdkError) || sdkError.Message == "" {
 			t.Fatalf("invalid SQL error = %#v, want copied *Error", err)
 		}
+		if sdkError.Kind != ErrorServer || !errors.Is(err, ErrServer) {
+			t.Fatalf("invalid SQL kind = %v, want ErrorServer", sdkError.Kind)
+		}
 		copied := sdkError.Message
 		if err := conn.Ping(); err != nil {
 			t.Fatal(err)
@@ -625,5 +630,83 @@ func TestIntegrationCoreConnectionModesAndLifecycle(t *testing.T) {
 		if !errors.As(err, &sdkError) {
 			t.Fatalf("bad credentials error = %T, want *Error", err)
 		}
+		if sdkError.Code != 7056 || sdkError.Kind != ErrorAuthentication || !errors.Is(err, ErrAuthentication) {
+			t.Fatalf("bad credentials classification = code:%d kind:%v", sdkError.Code, sdkError.Kind)
+		}
+	}
+}
+
+func TestIntegrationContextPreflightHasNoSideEffect(t *testing.T) {
+	conn, _ := openSandbox(t)
+	if _, err := conn.Exec("CREATE TABLE context_values (id INTEGER PRIMARY KEY);"); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := conn.ExecContext(ctx, "INSERT INTO context_values VALUES (1);"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("ExecContext(canceled) = %v, want context.Canceled", err)
+	}
+	if got := scalarInt64(t, conn, "SELECT count(*) FROM context_values;"); got != 0 {
+		t.Fatalf("canceled execution row count = %d, want 0", got)
+	}
+}
+
+func TestIntegrationNetworkAndHandshakeTimeoutClassification(t *testing.T) {
+	if _, err := Open(Options{
+		Host:     "does-not-exist.invalid",
+		Port:     4430,
+		Username: "invalid",
+		Password: "invalid",
+		Timeout:  time.Second,
+	}); err == nil {
+		t.Fatal("invalid host unexpectedly connected")
+	} else {
+		var sdkError *Error
+		if !errors.As(err, &sdkError) || sdkError.Code != 802 || sdkError.Kind != ErrorNetwork || !errors.Is(err, ErrNetwork) {
+			t.Fatalf("invalid-host classification = %#v", err)
+		}
+	}
+
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, err := listener.Accept()
+		if err == nil {
+			accepted <- conn
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	_, openErr := OpenContext(ctx, Options{
+		Host:     "127.0.0.1",
+		Port:     listener.Addr().(*net.TCPAddr).Port,
+		Username: "timeout",
+		Password: "timeout",
+		Timeout:  time.Second,
+	})
+	elapsed := time.Since(started)
+	select {
+	case conn := <-accepted:
+		conn.Close()
+	default:
+	}
+	var sdkError *Error
+	if !errors.As(openErr, &sdkError) || sdkError.Code != 810 || sdkError.Kind != ErrorTimeout || !errors.Is(openErr, ErrTimeout) {
+		t.Fatalf("handshake-timeout classification = %#v", openErr)
+	}
+	if elapsed < 4*time.Second || elapsed > 8*time.Second {
+		t.Fatalf("handshake timeout elapsed = %v, want fixed SDK window near 5s", elapsed)
+	}
+	if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		t.Fatalf("context state = %v, want DeadlineExceeded", ctx.Err())
 	}
 }

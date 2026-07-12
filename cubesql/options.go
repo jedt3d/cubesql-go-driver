@@ -16,6 +16,8 @@ const (
 
 // Options configures one physical CubeSQL connection. A zero Timeout uses the
 // SDK default of 12 seconds. Positive sub-second values round up to one second.
+// The SDK applies this value to socket connection and write operations, but not
+// to ordinary response reads; it is not an end-to-end operation deadline.
 type Options struct {
 	Host       string
 	Port       int

@@ -96,8 +96,10 @@ int csqlgo_conn_open(csqlgo_conn **out, const char *host, int port,
                              encryption);
     if (result != CUBESQL_NOERR) {
         if (conn->db != NULL) {
+            int code = cubesql_errcode(conn->db);
             *error_message = csqlgo_copy_string(cubesql_errmsg(conn->db));
             cubesql_disconnect(conn->db, kFALSE);
+            if (code != CUBESQL_NOERR) result = code;
         }
         free(conn);
         return result;
